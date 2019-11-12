@@ -3,6 +3,7 @@ from http.client import responses
 from os.path import dirname
 from os import environ
 import inspect
+import time
 
 import srcomapi
 import srcomapi.datatypes as datatypes
@@ -24,13 +25,21 @@ class SpeedrunCom(object):
         self.user_agent = user_agent
         self.mock = mock
         self.debug = 0
+        self.start_time = time.time()
+        self.use_count = 0
 
-    def get(self, endpoint, **kwargs):
+    def get(self, endpoint, keep_pagination=False, full_request=False, **kwargs):
+        self.wait_rate_limit()
+
         headers = {"User-Agent": self.user_agent}
         if self.api_key:
             headers["X-API-Key"] = self.api_key
         kwargs.update({"headers": headers})
-        uri = API_URL + endpoint
+        if full_request:
+            uri = endpoint
+        else:
+            uri = API_URL + endpoint
+
         if self.debug >= 1: print(uri)
         if self.mock:
             mock_endpoint = ".".join(endpoint.split("/")[0::2])
@@ -49,10 +58,15 @@ class SpeedrunCom(object):
             response = requests.get(uri, **kwargs)
             if response.status_code == 404:
                 raise APIRequestException((response.status_code, responses[response.status_code], uri[len(API_URL):]), response)
-            data = response.json()["data"]
+            if keep_pagination:
+                data = response.json()
+            else:
+                data = response.json()["data"]
+
         return data
 
     def post(self, endpoint, data, **kwargs):
+        self.wait_rate_limit()
         headers = {"User-Agent": self.user_agent}
         if self.api_key:
             headers["X-API-Key"] = self.api_key
@@ -67,8 +81,20 @@ class SpeedrunCom(object):
 
         return out_data
 
+    def wait_rate_limit(self):
+        if self.use_count == 100:
+            print("Waiting to pass rate limit")
+            while time.time() - self.start_time < 60:
+                time.sleep(1)
+            self.start_time = time.time()
+            self.use_count = 0
+        else:
+            self.use_count += 1
+
     def get_game(self, id, **kwargs):
+        self.wait_rate_limit()
         return datatypes.Game(self, data=self.get("games/" + id))
-    
+
     def get_request(self, req, **kwargs):
+        self.wait_rate_limit()
         return self.get(req)
