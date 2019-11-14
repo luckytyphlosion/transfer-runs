@@ -76,10 +76,22 @@ class SpeedrunCom(object):
         response = requests.post(uri, json=data, **kwargs)
         if response.status_code == 404 or response.status_code == 500:
             raise APIRequestException((response.status_code, responses[response.status_code], uri[len(API_URL):]), response)
-        
-        out_data = response.json()
 
-        return out_data
+        return response
+
+    def put(self, endpoint, data, **kwargs):
+        self.wait_rate_limit()
+        headers = {"User-Agent": self.user_agent}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
+        kwargs.update({"headers": headers})
+        uri = API_URL + endpoint
+
+        response = requests.put(uri, json=data, **kwargs)
+        if response.status_code == 404 or response.status_code == 500:
+            raise APIRequestException((response.status_code, responses[response.status_code], uri[len(API_URL):]), response)
+
+        return response
 
     def wait_rate_limit(self):
         if self.use_count == 100:
@@ -95,6 +107,5 @@ class SpeedrunCom(object):
         self.wait_rate_limit()
         return datatypes.Game(self, data=self.get("games/" + id))
 
-    def get_request(self, req, **kwargs):
-        self.wait_rate_limit()
-        return self.get(req)
+    def get_request(self, req, keep_pagination=False, full_request=False, **kwargs):
+        return self.get(req, keep_pagination, full_request)
