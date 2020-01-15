@@ -3,7 +3,7 @@ import json
 import time
 import collections
 
-API_KEY = "hab46tiql9czis3f8jsaftw61"
+API_KEY = "hab46tiql9czis3f8jsaftw61" # don't bother using this key, it's been invalidated
 
 def setup_api(api_key=None):
     return srcomapi.SpeedrunCom(api_key)
